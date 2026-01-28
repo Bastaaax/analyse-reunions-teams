@@ -46,6 +46,19 @@ function parseSpeakerLine(line: string): { speaker: string; text: string } {
   return { speaker: 'Inconnu', text: line.trim() }
 }
 
+/** Format Teams / VTT avec balise voix : <v Nom Prénom>texte</v> */
+const VOICE_TAG = /<v\s+([^>]+)>\s*([\s\S]*?)\s*<\/v>/i
+
+function parseVoiceTag(block: string): { speaker: string; text: string } | null {
+  const m = block.trim().match(VOICE_TAG)
+  if (m) {
+    const speaker = m[1].trim()
+    const text = m[2].trim().replace(/\s+/g, ' ')
+    return { speaker: speaker || 'Inconnu', text }
+  }
+  return null
+}
+
 /** Parse contenu VTT (avec ou sans en-tête WEBVTT) */
 export function parseVTT(content: string): Intervention[] {
   const lines = content.split(/\r?\n/)
@@ -65,7 +78,8 @@ export function parseVTT(content: string): Intervention[] {
         i += 1
       }
       const fullText = textParts.join(' ')
-      const { speaker, text } = parseSpeakerLine(fullText)
+      const voice = parseVoiceTag(fullText)
+      const { speaker, text } = voice ?? parseSpeakerLine(fullText)
       interventions.push({
         id: `i-${interventions.length}`,
         speaker,
@@ -95,7 +109,8 @@ export function parseSRT(content: string): Intervention[] {
     const endTime = parseTimestamp(timeMatch[2])
     const textLines = lines.slice(2)
     const fullText = textLines.join(' ')
-    const { speaker, text } = parseSpeakerLine(fullText)
+    const voice = parseVoiceTag(fullText)
+    const { speaker, text } = voice ?? parseSpeakerLine(fullText)
     interventions.push({
       id: `i-${interventions.length}`,
       speaker,
